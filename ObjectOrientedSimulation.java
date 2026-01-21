@@ -181,22 +181,33 @@ public class ObjectOrientedSimulation {
 
     public static void main(String[] args) {
         int entityCount = DEFAULT_ENTITY_COUNT;
-        if (args != null && args.length > 0) {
-            try {
-                entityCount = Integer.parseInt(args[0]);
-            } catch (NumberFormatException ignored) {
+        boolean render = true;
+
+        if (args != null) {
+            for (String a : args) {
+                if ("--noRender".equalsIgnoreCase(a)) render = false;
+                else {
+                    try { entityCount = Integer.parseInt(a); } catch (NumberFormatException ignored) {}
+                }
             }
         }
 
-        StdDraw.enableDoubleBuffering();
-        StdDraw.clear(StdDraw.BLACK);
-        StdDraw.setXscale(X_MIN, X_MAX);
-        StdDraw.setYscale(Y_MIN, Y_MAX);
+        if (render) {
+            StdDraw.enableDoubleBuffering();
+            StdDraw.clear(StdDraw.BLACK);
+            StdDraw.setXscale(X_MIN, X_MAX);
+            StdDraw.setYscale(Y_MIN, Y_MAX);
+        }
 
         ObjectOrientedSimulation system = new ObjectOrientedSimulation(entityCount);
         FPSCounter fps = new FPSCounter();
 
         long lastTime = System.nanoTime();
+
+        long accUpdateNanos = 0L;
+        int frames = 0;
+        long lastReport = System.nanoTime();
+
         while (true) {
             long currentTime = System.nanoTime();
             double dt = (currentTime - lastTime) / 1.0e9;
@@ -204,12 +215,28 @@ public class ObjectOrientedSimulation {
 
             fps.recordFrame(dt);
 
+            long t0 = System.nanoTime();
             system.update(dt);
+            long t1 = System.nanoTime();
 
-            StdDraw.clear(StdDraw.BLACK);
-            system.render();
-            fps.drawOverlayUpperLeft(X_MIN, X_MAX, Y_MIN, Y_MAX);
-            StdDraw.show();
+            accUpdateNanos += (t1 - t0);
+            frames++;
+
+            if (render) {
+                StdDraw.clear(StdDraw.BLACK);
+                system.render();
+                fps.drawOverlayUpperLeft(X_MIN, X_MAX, Y_MIN, Y_MAX);
+                StdDraw.show();
+            }
+
+            long now = System.nanoTime();
+            if (now - lastReport >= 1_000_000_000L) {
+                double avgUpdateMs = (accUpdateNanos / 1_000_000.0) / Math.max(1, frames);
+                System.out.printf("Avg update: %.3f ms | FPS(whole): %.0f%n", avgUpdateMs, fps.getSmoothedFPS());
+                accUpdateNanos = 0L;
+                frames = 0;
+                lastReport = now;
+            }
         }
     }
 
