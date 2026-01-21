@@ -194,6 +194,7 @@ public class ObjectOrientedSimulation {
         StdDraw.setYscale(Y_MIN, Y_MAX);
 
         ObjectOrientedSimulation system = new ObjectOrientedSimulation(entityCount);
+        FPSCounter fps = new FPSCounter();
 
         long lastTime = System.nanoTime();
         while (true) {
@@ -201,10 +202,13 @@ public class ObjectOrientedSimulation {
             double dt = (currentTime - lastTime) / 1.0e9;
             lastTime = currentTime;
 
+            fps.recordFrame(dt);
+
             system.update(dt);
 
             StdDraw.clear(StdDraw.BLACK);
             system.render();
+            fps.drawOverlayUpperLeft(X_MIN, X_MAX, Y_MIN, Y_MAX);
             StdDraw.show();
         }
     }

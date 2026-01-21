@@ -20,6 +20,7 @@ public class DataOrientedSimulation {
         StdDraw.setYscale(WORLD_MIN, WORLD_MAX);
 
         DataOrientedCircleSystem system = new DataOrientedCircleSystem(entityCount);
+        FPSCounter fps = new FPSCounter();
 
         long lastTime = System.nanoTime();
         while (true) {
@@ -27,10 +28,13 @@ public class DataOrientedSimulation {
             double dt = (currentTime - lastTime) / 1.0e9;
             lastTime = currentTime;
 
+            fps.recordFrame(dt);
+
             system.update(dt);
 
             StdDraw.clear(StdDraw.BLACK);
             system.render();
+            fps.drawOverlayUpperLeft(WORLD_MIN, WORLD_MAX, WORLD_MIN, WORLD_MAX);
             StdDraw.show();
         }
     }
