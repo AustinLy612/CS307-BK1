@@ -36,8 +36,8 @@ public class DataOrientedSimulation {
     }
 
     static final class DataOrientedCircleSystem {
-        private static final double MIN_RADIUS = 0.005;
-        private static final double MAX_RADIUS = 0.010;
+        private static final double MIN_RADIUS = 0.001;
+        private static final double MAX_RADIUS = 0.005;
         private static final double MAX_SPEED = 0.25;
 
         private final int entityCount;
@@ -238,4 +238,3 @@ public class DataOrientedSimulation {
         }
     }
 }
-
