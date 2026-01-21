@@ -3,7 +3,7 @@ public class DataOrientedSimulation {
     private static final double WORLD_MIN = 0.0;
     private static final double WORLD_MAX = 1.0;
 
-    private static final int DEFAULT_ENTITY_COUNT = 20000;
+    private static final int DEFAULT_ENTITY_COUNT = 1000;
 
     public static void main(String[] args) {
         int entityCount = DEFAULT_ENTITY_COUNT;
@@ -67,8 +67,8 @@ public class DataOrientedSimulation {
     }
 
     static final class DataOrientedCircleSystem {
-        private static final double MIN_RADIUS = 0.001;
-        private static final double MAX_RADIUS = 0.005;
+        private static final double MIN_RADIUS = 0.01;
+        private static final double MAX_RADIUS = 0.05;
         private static final double MAX_SPEED = 0.25;
 
         private final int entityCount;
@@ -88,13 +88,6 @@ public class DataOrientedSimulation {
         private final int[] cBottomLeft;
         private final int[] cBottomRight;
 
-        // Grid system
-        private final double cellSize;
-        private final int gridWidth;
-        private final int gridHeight;
-        private final int[] cellHead;
-        private final int[] nextInCell;
-
         DataOrientedCircleSystem(int entityCount) {
             this.entityCount = entityCount;
 
@@ -112,13 +105,6 @@ public class DataOrientedSimulation {
             cBottomRight = new int[entityCount];
 
             initEntities();
-
-            cellSize = 2.0 * MAX_RADIUS;
-            gridWidth = Math.max(1, (int) Math.ceil((WORLD_MAX - WORLD_MIN) / cellSize));
-            gridHeight = gridWidth;
-
-            cellHead = new int[gridWidth * gridHeight];
-            nextInCell = new int[entityCount];
         }
 
         private void initEntities() {
@@ -143,8 +129,6 @@ public class DataOrientedSimulation {
 
         void update(double deltaTime) {
             integrateAndBounce(deltaTime);
-            rebuildGrid();
-            resolveCollisions();
         }
 
         private void integrateAndBounce(double deltaTime) {
@@ -171,111 +155,6 @@ public class DataOrientedSimulation {
                     py[i] = WORLD_MAX - r;
                     vy[i] = -vy[i];
                 }
-            }
-        }
-
-        private void rebuildGrid() {
-            java.util.Arrays.fill(cellHead, -1);
-            for (int i = 0; i < entityCount; i++) {
-                int cx = (int) ((px[i] - WORLD_MIN) / cellSize);
-                int cy = (int) ((py[i] - WORLD_MIN) / cellSize);
-
-                if (cx < 0) cx = 0;
-                else if (cx >= gridWidth) cx = gridWidth - 1;
-
-                if (cy < 0) cy = 0;
-                else if (cy >= gridHeight) cy = gridHeight - 1;
-
-                int cellIndex = cx + cy * gridWidth;
-                nextInCell[i] = cellHead[cellIndex];
-                cellHead[cellIndex] = i;
-            }
-        }
-
-        private void resolveCollisions() {
-            // Collision resolution logic remains essentially the same,
-            // but now accesses data via indices.
-            for (int cy = 0; cy < gridHeight; cy++) {
-                for (int cx = 0; cx < gridWidth; cx++) {
-                    int cellIndex = cx + cy * gridWidth;
-                    
-                    // Same cell
-                    int i = cellHead[cellIndex];
-                    while (i != -1) {
-                        int j = nextInCell[i];
-                        while (j != -1) {
-                            resolvePair(i, j);
-                            j = nextInCell[j];
-                        }
-                        i = nextInCell[i];
-                    }
-
-                    // Neighbor cells
-                    if (cx + 1 < gridWidth) resolveCellPairAcross(cellIndex, (cx + 1) + cy * gridWidth);
-                    if (cy + 1 < gridHeight) resolveCellPairAcross(cellIndex, cx + (cy + 1) * gridWidth);
-                    if (cx + 1 < gridWidth && cy + 1 < gridHeight) {
-                        resolveCellPairAcross(cellIndex, (cx + 1) + (cy + 1) * gridWidth);
-                    }
-                    if (cx - 1 >= 0 && cy + 1 < gridHeight) {
-                        resolveCellPairAcross(cellIndex, (cx - 1) + (cy + 1) * gridWidth);
-                    }
-                }
-            }
-        }
-
-        private void resolveCellPairAcross(int cellA, int cellB) {
-            int i = cellHead[cellA];
-            while (i != -1) {
-                int j = cellHead[cellB];
-                while (j != -1) {
-                    resolvePair(i, j);
-                    j = nextInCell[j];
-                }
-                i = nextInCell[i];
-            }
-        }
-
-        private void resolvePair(int i, int j) {
-            double dx = px[j] - px[i];
-            double dy = py[j] - py[i];
-            double dist2 = dx * dx + dy * dy;
-
-            double rSum = rad[i] + rad[j];
-            double rSum2 = rSum * rSum;
-
-            if (dist2 >= rSum2 || dist2 <= 0.0) return;
-
-            double dist = Math.sqrt(dist2);
-            double nx = dx / dist;
-            double ny = dy / dist;
-
-            double m1 = mass[i];
-            double m2 = mass[j];
-
-            double overlap = rSum - dist;
-            double moveFactor = overlap / (m1 + m2);
-
-            // Direct array writes
-            double m2nx = m2 * nx; 
-            double m2ny = m2 * ny;
-            double m1nx = m1 * nx;
-            double m1ny = m1 * ny;
-
-            px[i] -= moveFactor * m2nx;
-            py[i] -= moveFactor * m2ny;
-            px[j] += moveFactor * m1nx;
-            py[j] += moveFactor * m1ny;
-
-            double dvx = vx[i] - vx[j];
-            double dvy = vy[i] - vy[j];
-            double vn = dvx * nx + dvy * ny;
-
-            if (vn > 0.0) {
-                double impulse = (2.0 * vn) / (m1 + m2);
-                vx[i] -= impulse * m2nx;
-                vy[i] -= impulse * m2ny;
-                vx[j] += impulse * m1nx;
-                vy[j] += impulse * m1ny;
             }
         }
 
