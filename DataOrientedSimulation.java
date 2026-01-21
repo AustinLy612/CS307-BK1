@@ -36,21 +36,25 @@ public class DataOrientedSimulation {
     }
 
     static final class DataOrientedCircleSystem {
+        static final class PhysicsComponent {
+            double x, y;
+            double vx, vy;
+            double radius;
+            double mass;
+        }
+
+        static final class GraphicsComponent {
+            int r, g, b;
+        }
+
         private static final double MIN_RADIUS = 0.001;
         private static final double MAX_RADIUS = 0.005;
         private static final double MAX_SPEED = 0.25;
 
         private final int entityCount;
 
-        private final double[] x;
-        private final double[] y;
-        private final double[] vx;
-        private final double[] vy;
-        private final double[] radius;
-        private final double[] mass;
-        private final int[] colorR;
-        private final int[] colorG;
-        private final int[] colorB;
+        private final PhysicsComponent[] physics;
+        private final GraphicsComponent[] graphics;
 
         private final double cellSize;
         private final int gridWidth;
@@ -61,15 +65,13 @@ public class DataOrientedSimulation {
         DataOrientedCircleSystem(int entityCount) {
             this.entityCount = entityCount;
 
-            x = new double[entityCount];
-            y = new double[entityCount];
-            vx = new double[entityCount];
-            vy = new double[entityCount];
-            radius = new double[entityCount];
-            mass = new double[entityCount];
-            colorR = new int[entityCount];
-            colorG = new int[entityCount];
-            colorB = new int[entityCount];
+            physics = new PhysicsComponent[entityCount];
+            graphics = new GraphicsComponent[entityCount];
+            
+            for (int i = 0; i < entityCount; i++) {
+                physics[i] = new PhysicsComponent();
+                graphics[i] = new GraphicsComponent();
+            }
 
             initEntities();
 
@@ -84,19 +86,22 @@ public class DataOrientedSimulation {
         private void initEntities() {
             java.util.Random rand = java.util.concurrent.ThreadLocalRandom.current();
             for (int i = 0; i < entityCount; i++) {
+                PhysicsComponent p = physics[i];
+                GraphicsComponent g = graphics[i];
+
                 double r = MIN_RADIUS + rand.nextDouble() * (MAX_RADIUS - MIN_RADIUS);
-                radius[i] = r;
-                mass[i] = r * r;
+                p.radius = r;
+                p.mass = r * r;
 
-                x[i] = rand.nextDouble(WORLD_MIN + r, WORLD_MAX - r);
-                y[i] = rand.nextDouble(WORLD_MIN + r, WORLD_MAX - r);
+                p.x = rand.nextDouble(WORLD_MIN + r, WORLD_MAX - r);
+                p.y = rand.nextDouble(WORLD_MIN + r, WORLD_MAX - r);
 
-                vx[i] = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
-                vy[i] = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
+                p.vx = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
+                p.vy = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
 
-                colorR[i] = rand.nextInt(256);
-                colorG[i] = rand.nextInt(256);
-                colorB[i] = rand.nextInt(256);
+                g.r = rand.nextInt(256);
+                g.g = rand.nextInt(256);
+                g.b = rand.nextInt(256);
             }
         }
 
@@ -108,25 +113,26 @@ public class DataOrientedSimulation {
 
         private void integrateAndBounce(double deltaTime) {
             for (int i = 0; i < entityCount; i++) {
-                x[i] += vx[i] * deltaTime;
-                y[i] += vy[i] * deltaTime;
+                PhysicsComponent p = physics[i];
+                p.x += p.vx * deltaTime;
+                p.y += p.vy * deltaTime;
 
-                double r = radius[i];
+                double r = p.radius;
 
-                if (x[i] - r < WORLD_MIN) {
-                    x[i] = WORLD_MIN + r;
-                    vx[i] = -vx[i];
-                } else if (x[i] + r > WORLD_MAX) {
-                    x[i] = WORLD_MAX - r;
-                    vx[i] = -vx[i];
+                if (p.x - r < WORLD_MIN) {
+                    p.x = WORLD_MIN + r;
+                    p.vx = -p.vx;
+                } else if (p.x + r > WORLD_MAX) {
+                    p.x = WORLD_MAX - r;
+                    p.vx = -p.vx;
                 }
 
-                if (y[i] - r < WORLD_MIN) {
-                    y[i] = WORLD_MIN + r;
-                    vy[i] = -vy[i];
-                } else if (y[i] + r > WORLD_MAX) {
-                    y[i] = WORLD_MAX - r;
-                    vy[i] = -vy[i];
+                if (p.y - r < WORLD_MIN) {
+                    p.y = WORLD_MIN + r;
+                    p.vy = -p.vy;
+                } else if (p.y + r > WORLD_MAX) {
+                    p.y = WORLD_MAX - r;
+                    p.vy = -p.vy;
                 }
             }
         }
@@ -134,8 +140,9 @@ public class DataOrientedSimulation {
         private void rebuildGrid() {
             java.util.Arrays.fill(cellHead, -1);
             for (int i = 0; i < entityCount; i++) {
-                int cx = (int) ((x[i] - WORLD_MIN) / cellSize);
-                int cy = (int) ((y[i] - WORLD_MIN) / cellSize);
+                PhysicsComponent p = physics[i];
+                int cx = (int) ((p.x - WORLD_MIN) / cellSize);
+                int cy = (int) ((p.y - WORLD_MIN) / cellSize);
 
                 if (cx < 0) cx = 0;
                 else if (cx >= gridWidth) cx = gridWidth - 1;
@@ -184,11 +191,14 @@ public class DataOrientedSimulation {
         }
 
         private void resolvePair(int i, int j) {
-            double dx = x[j] - x[i];
-            double dy = y[j] - y[i];
+            PhysicsComponent p1 = physics[i];
+            PhysicsComponent p2 = physics[j];
+
+            double dx = p2.x - p1.x;
+            double dy = p2.y - p1.y;
             double dist2 = dx * dx + dy * dy;
 
-            double rSum = radius[i] + radius[j];
+            double rSum = p1.radius + p2.radius;
             double rSum2 = rSum * rSum;
 
             if (dist2 >= rSum2 || dist2 <= 0.0) return;
@@ -197,43 +207,42 @@ public class DataOrientedSimulation {
             double nx = dx / dist;
             double ny = dy / dist;
 
-            double m1 = mass[i];
-            double m2 = mass[j];
+            double m1 = p1.mass;
+            double m2 = p2.mass;
 
             double overlap = rSum - dist;
             double moveFactor = overlap / (m1 + m2);
 
-            x[i] -= moveFactor * m2 * nx;
-            y[i] -= moveFactor * m2 * ny;
-            x[j] += moveFactor * m1 * nx;
-            y[j] += moveFactor * m1 * ny;
+            p1.x -= moveFactor * m2 * nx;
+            p1.y -= moveFactor * m2 * ny;
+            p2.x += moveFactor * m1 * nx;
+            p2.y += moveFactor * m1 * ny;
 
-            double dvx = vx[i] - vx[j];
-            double dvy = vy[i] - vy[j];
+            double dvx = p1.vx - p2.vx;
+            double dvy = p1.vy - p2.vy;
             double vn = dvx * nx + dvy * ny;
 
             if (vn > 0.0) {
                 double impulse = (2.0 * vn) / (m1 + m2);
-                vx[i] -= impulse * m2 * nx;
-                vy[i] -= impulse * m2 * ny;
-                vx[j] += impulse * m1 * nx;
-                vy[j] += impulse * m1 * ny;
+                p1.vx -= impulse * m2 * nx;
+                p1.vy -= impulse * m2 * ny;
+                p2.vx += impulse * m1 * nx;
+                p2.vy += impulse * m1 * ny;
             }
         }
 
         void render() {
             int lastR = -1, lastG = -1, lastB = -1;
             for (int i = 0; i < entityCount; i++) {
-                int r = colorR[i];
-                int g = colorG[i];
-                int b = colorB[i];
-                if (r != lastR || g != lastG || b != lastB) {
-                    StdDraw.setPenColor(r, g, b);
-                    lastR = r;
-                    lastG = g;
-                    lastB = b;
+                GraphicsComponent g = graphics[i];
+                if (g.r != lastR || g.g != lastG || g.b != lastB) {
+                    StdDraw.setPenColor(g.r, g.g, g.b);
+                    lastR = g.r;
+                    lastG = g.g;
+                    lastB = g.b;
                 }
-                StdDraw.filledCircle(x[i], y[i], radius[i]);
+                PhysicsComponent p = physics[i];
+                StdDraw.filledCircle(p.x, p.y, p.radius);
             }
         }
     }
