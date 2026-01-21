@@ -1,6 +1,4 @@
-import java.awt.Color;
 import java.util.Arrays;
-import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class ObjectOrientedSimulation {
@@ -51,9 +49,12 @@ public class ObjectOrientedSimulation {
             double vx = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
             double vy = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
 
-            Color color = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256));
-            
-            circles[i] = new Circle(x, y, vx, vy, color, r, mass);
+            int topLeft = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
+            int topRight = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
+            int bottomLeft = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
+            int bottomRight = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
+
+            circles[i] = new Circle(x, y, vx, vy, topLeft, topRight, bottomLeft, bottomRight, r, mass);
         }
     }
 
@@ -164,14 +165,12 @@ public class ObjectOrientedSimulation {
     }
 
     public void render() {
-        Color lastColor = null;
         for (Circle entity : circles) {
-            Color currentColor = entity.getColor();
-            if (lastColor == null || !lastColor.equals(currentColor)) {
-                StdDraw.setPenColor(currentColor);
-                lastColor = currentColor;
-            }
-            StdDraw.filledCircle(entity.getX(), entity.getY(), entity.getRadius());
+            StdDraw.filledGradientCircle(
+                    entity.getX(), entity.getY(), entity.getRadius(),
+                    entity.getTopLeftRGB(), entity.getTopRightRGB(),
+                    entity.getBottomLeftRGB(), entity.getBottomRightRGB()
+            );
         }
     }
 
@@ -245,16 +244,24 @@ public class ObjectOrientedSimulation {
         private double y;
         private double vx;
         private double vy;
-        private Color color;
+        private int topLeftRGB;
+        private int topRightRGB;
+        private int bottomLeftRGB;
+        private int bottomRightRGB;
         private double radius;
         private double mass;
 
-        public Circle(double x, double y, double vx, double vy, Color color, double radius, double mass) {
+        public Circle(double x, double y, double vx, double vy,
+                      int topLeftRGB, int topRightRGB, int bottomLeftRGB, int bottomRightRGB,
+                      double radius, double mass) {
             this.x = x;
             this.y = y;
             this.vx = vx;
             this.vy = vy;
-            this.color = color;
+            this.topLeftRGB = topLeftRGB;
+            this.topRightRGB = topRightRGB;
+            this.bottomLeftRGB = bottomLeftRGB;
+            this.bottomRightRGB = bottomRightRGB;
             this.radius = radius;
             this.mass = mass;
         }
@@ -314,13 +321,21 @@ public class ObjectOrientedSimulation {
             this.vy = vy;
         }
 
-        public Color getColor() {
-            return color;
-        }
+        public int getTopLeftRGB() { return topLeftRGB; }
 
-        public void setColor(Color color) {
-            this.color = color;
-        }
+        public void setTopLeftRGB(int topLeftRGB) { this.topLeftRGB = topLeftRGB; }
+
+        public int getTopRightRGB() { return topRightRGB; }
+
+        public void setTopRightRGB(int topRightRGB) { this.topRightRGB = topRightRGB; }
+
+        public int getBottomLeftRGB() { return bottomLeftRGB; }
+
+        public void setBottomLeftRGB(int bottomLeftRGB) { this.bottomLeftRGB = bottomLeftRGB; }
+
+        public int getBottomRightRGB() { return bottomRightRGB; }
+
+        public void setBottomRightRGB(int bottomRightRGB) { this.bottomRightRGB = bottomRightRGB; }
 
         public double getRadius() {
             return radius;

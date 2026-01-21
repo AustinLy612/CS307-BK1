@@ -83,9 +83,10 @@ public class DataOrientedSimulation {
         private final double[] mass; // Mass
         
         // Graphics data separated (hot/cold splitting)
-        private final int[] cr;
-        private final int[] cg;
-        private final int[] cb;
+        private final int[] cTopLeft;
+        private final int[] cTopRight;
+        private final int[] cBottomLeft;
+        private final int[] cBottomRight;
 
         // Grid system
         private final double cellSize;
@@ -105,9 +106,10 @@ public class DataOrientedSimulation {
             rad = new double[entityCount];
             mass = new double[entityCount];
             
-            cr = new int[entityCount];
-            cg = new int[entityCount];
-            cb = new int[entityCount];
+            cTopLeft = new int[entityCount];
+            cTopRight = new int[entityCount];
+            cBottomLeft = new int[entityCount];
+            cBottomRight = new int[entityCount];
 
             initEntities();
 
@@ -132,9 +134,10 @@ public class DataOrientedSimulation {
                 vx[i] = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
                 vy[i] = rand.nextDouble(-MAX_SPEED, MAX_SPEED);
 
-                cr[i] = rand.nextInt(256);
-                cg[i] = rand.nextInt(256);
-                cb[i] = rand.nextInt(256);
+                cTopLeft[i] = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
+                cTopRight[i] = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
+                cBottomLeft[i] = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
+                cBottomRight[i] = (rand.nextInt(256) << 16) | (rand.nextInt(256) << 8) | rand.nextInt(256);
             }
         }
 
@@ -277,15 +280,12 @@ public class DataOrientedSimulation {
         }
 
         void render() {
-            int lastR = -1, lastG = -1, lastB = -1;
             for (int i = 0; i < entityCount; i++) {
-                if (cr[i] != lastR || cg[i] != lastG || cb[i] != lastB) {
-                    StdDraw.setPenColor(cr[i], cg[i], cb[i]);
-                    lastR = cr[i];
-                    lastG = cg[i];
-                    lastB = cb[i];
-                }
-                StdDraw.filledCircle(px[i], py[i], rad[i]);
+                StdDraw.filledGradientCircle(
+                        px[i], py[i], rad[i],
+                        cTopLeft[i], cTopRight[i],
+                        cBottomLeft[i], cBottomRight[i]
+                );
             }
         }
     }

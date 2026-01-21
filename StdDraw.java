@@ -36,6 +36,7 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.MediaTracker;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.Toolkit;
 
 import java.awt.event.ActionEvent;
@@ -1146,6 +1147,64 @@ public final class StdDraw implements ActionListener, MouseListener, MouseMotion
         double hs = factorY(2*radius);
         if (ws <= 1 && hs <= 1) pixel(x, y);
         else offscreen.fill(new Ellipse2D.Double(xs - ws/2, ys - hs/2, ws, hs));
+        draw();
+    }
+
+
+    /**
+     * Draws a filled circle of the specified radius, centered at (<em>x</em>, <em>y</em>),
+     * with a 4-corner gradient.
+     * <p>
+     * The gradient is defined by the four corner colors of the circle's bounding box:
+     * top-left, top-right, bottom-left, bottom-right. Colors are specified as packed
+     * RGB integers {@code 0xRRGGBB}.
+     *
+     * @param  x the <em>x</em>-coordinate of the center of the circle
+     * @param  y the <em>y</em>-coordinate of the center of the circle
+     * @param  radius the radius of the circle
+     * @param  topLeftRGB packed RGB {@code 0xRRGGBB}
+     * @param  topRightRGB packed RGB {@code 0xRRGGBB}
+     * @param  bottomLeftRGB packed RGB {@code 0xRRGGBB}
+     * @param  bottomRightRGB packed RGB {@code 0xRRGGBB}
+     * @throws IllegalArgumentException if {@code radius} is negative
+     * @throws IllegalArgumentException if any argument is either NaN or infinite
+     */
+    public static void filledGradientCircle(double x, double y, double radius,
+                                            int topLeftRGB, int topRightRGB,
+                                            int bottomLeftRGB, int bottomRightRGB) {
+        validate(x, "x");
+        validate(y, "y");
+        validate(radius, "radius");
+        validateNonnegative(radius, "radius");
+
+        double xs = scaleX(x);
+        double ys = scaleY(y);
+        double ws = factorX(2*radius);
+        double hs = factorY(2*radius);
+
+        if (ws <= 1 && hs <= 1) {
+            pixel(x, y);
+            return;
+        }
+
+        // Create a tiny 2x2 texture and let Java2D scale it with bilinear interpolation.
+        // Then clip to an ellipse to mask it into a circle shape.
+        BufferedImage tex = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
+        tex.setRGB(0, 0, 0xFF000000 | (topLeftRGB & 0x00FFFFFF));
+        tex.setRGB(1, 0, 0xFF000000 | (topRightRGB & 0x00FFFFFF));
+        tex.setRGB(0, 1, 0xFF000000 | (bottomLeftRGB & 0x00FFFFFF));
+        tex.setRGB(1, 1, 0xFF000000 | (bottomRightRGB & 0x00FFFFFF));
+
+        double x0 = xs - ws/2;
+        double y0 = ys - hs/2;
+
+        Shape oldClip = offscreen.getClip();
+        offscreen.setClip(new Ellipse2D.Double(x0, y0, ws, hs));
+        offscreen.drawImage(tex,
+                            (int) Math.round(x0), (int) Math.round(y0),
+                            (int) Math.round(ws), (int) Math.round(hs),
+                            null);
+        offscreen.setClip(oldClip);
         draw();
     }
 
