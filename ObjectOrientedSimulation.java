@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -16,9 +17,25 @@ public class ObjectOrientedSimulation {
     private final int entityCount;
     private final Circle[] circles;
 
+    // Grid collision fields
+    private final double cellSize;
+    private final int gridWidth;
+    private final int gridHeight;
+    private final int[] cellHead;
+    private final int[] nextInCell;
+
     public ObjectOrientedSimulation(int entityCount) {
         this.entityCount = entityCount;
         this.circles = new Circle[entityCount];
+        
+        // Initialize grid dimensions
+        this.cellSize = 2.0 * MAX_RADIUS;
+        this.gridWidth = Math.max(1, (int) Math.ceil((X_MAX - X_MIN) / cellSize));
+        this.gridHeight = Math.max(1, (int) Math.ceil((Y_MAX - Y_MIN) / cellSize));
+        
+        this.cellHead = new int[gridWidth * gridHeight];
+        this.nextInCell = new int[entityCount];
+
         initAllEntities();
     }
 
@@ -45,7 +62,105 @@ public class ObjectOrientedSimulation {
             entity.move(deltaTime);
             entity.boundaryBounce();
         }
-        CollisionTool.checkCollision(circles);
+        // CollisionTool.checkCollision(circles); // Removed brute force
+        rebuildGrid();
+        resolveCollisions();
+    }
+
+    private void rebuildGrid() {
+        Arrays.fill(cellHead, -1);
+        for (int i = 0; i < entityCount; i++) {
+            Circle c = circles[i];
+            int cx = (int) ((c.x - X_MIN) / cellSize);
+            int cy = (int) ((c.y - Y_MIN) / cellSize);
+
+            if (cx < 0) cx = 0;
+            else if (cx >= gridWidth) cx = gridWidth - 1;
+
+            if (cy < 0) cy = 0;
+            else if (cy >= gridHeight) cy = gridHeight - 1;
+
+            int cellIndex = cx + cy * gridWidth;
+            nextInCell[i] = cellHead[cellIndex];
+            cellHead[cellIndex] = i;
+        }
+    }
+
+    private void resolveCollisions() {
+        for (int cy = 0; cy < gridHeight; cy++) {
+            for (int cx = 0; cx < gridWidth; cx++) {
+                int cellIndex = cx + cy * gridWidth;
+                resolveCellPairs(cellIndex);
+
+                if (cx + 1 < gridWidth) resolveCellPairAcross(cellIndex, (cx + 1) + cy * gridWidth);
+                if (cy + 1 < gridHeight) resolveCellPairAcross(cellIndex, cx + (cy + 1) * gridWidth);
+                if (cx + 1 < gridWidth && cy + 1 < gridHeight) {
+                    resolveCellPairAcross(cellIndex, (cx + 1) + (cy + 1) * gridWidth);
+                }
+                if (cx - 1 >= 0 && cy + 1 < gridHeight) {
+                    resolveCellPairAcross(cellIndex, (cx - 1) + (cy + 1) * gridWidth);
+                }
+            }
+        }
+    }
+
+    private void resolveCellPairs(int cellIndex) {
+        for (int i = cellHead[cellIndex]; i != -1; i = nextInCell[i]) {
+            for (int j = nextInCell[i]; j != -1; j = nextInCell[j]) {
+                resolvePair(i, j);
+            }
+        }
+    }
+
+    private void resolveCellPairAcross(int cellA, int cellB) {
+        for (int i = cellHead[cellA]; i != -1; i = nextInCell[i]) {
+            for (int j = cellHead[cellB]; j != -1; j = nextInCell[j]) {
+                resolvePair(i, j);
+            }
+        }
+    }
+
+    private void resolvePair(int i, int j) {
+        Circle c1 = circles[i];
+        Circle c2 = circles[j];
+
+        double dx = c2.x - c1.x;
+        double dy = c2.y - c1.y;
+        double dist2 = dx * dx + dy * dy;
+
+        double rSum = c1.radius + c2.radius;
+        double rSum2 = rSum * rSum;
+
+        if (dist2 >= rSum2 || dist2 <= 0.0) return;
+
+        double dist = Math.sqrt(dist2);
+        double nx = dx / dist;
+        double ny = dy / dist;
+
+        double m1 = c1.mass;
+        double m2 = c2.mass;
+
+        // Position correction (overlap)
+        double overlap = rSum - dist;
+        double moveFactor = overlap / (m1 + m2);
+
+        c1.x -= moveFactor * m2 * nx;
+        c1.y -= moveFactor * m2 * ny;
+        c2.x += moveFactor * m1 * nx;
+        c2.y += moveFactor * m1 * ny;
+
+        // Velocity resolution
+        double dvx = c1.vx - c2.vx;
+        double dvy = c1.vy - c2.vy;
+        double vn = dvx * nx + dvy * ny;
+
+        if (vn > 0.0) {
+            double impulse = (2.0 * vn) / (m1 + m2);
+            c1.vx -= impulse * m2 * nx;
+            c1.vy -= impulse * m2 * ny;
+            c2.vx += impulse * m1 * nx;
+            c2.vy += impulse * m1 * ny;
+        }
     }
 
     public void render() {
